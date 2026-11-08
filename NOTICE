@@ -1,0 +1,19 @@
+auto_rf (rf-mcp-enhanced)
+Copyright 2026 shuikulangzi
+
+This product is a derivative work based on rf-mcp v0.36.0
+(https://github.com/manykarim/rf-mcp), Copyright the rf-mcp contributors,
+licensed under the Apache License, Version 2.0.
+
+The original work's LICENSE and copyright notices are retained in this
+repository. Modifications made in this fork add:
+
+  - Persistent browser profile support (open_persistent_browser,
+    SingletonLock cleanup, reuse_existing / fresh_profile / clean_state)
+  - Self-healing locator retry (rule-based candidates + host-sampling
+    LLM fallback)
+  - Session lifecycle state machine (active / idle / closed) and explicit
+    close_session with real Playwright process release
+
+Licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
