@@ -5381,6 +5381,20 @@ async def open_persistent_browser(
     if "Browser" not in _session.search_order:
         _session.search_order.append("Browser")
 
+    # 根因修复：若该 session 之前执行过其他关键字（如 BuiltIn.Log / analyze_scenario），
+    # session.libraries_loaded 已是 True，execute_step 会跳过 _load_session_libraries，
+    # 于是新登记的 Browser 永远进不了 library_manager / RF 上下文，
+    # 表现为 execute_step 报 "Browser not loaded in library manager" 然后长时间卡住。
+    # 这里在进入 execute_step 前主动把 Browser 加载进 library_manager。
+    try:
+        _kdisc = execution_engine.keyword_executor.keyword_discovery
+        if "Browser" not in _kdisc.library_manager.libraries:
+            _kdisc.library_manager.load_library_on_demand(
+                "Browser", _kdisc.keyword_discovery
+            )
+    except Exception as _preload_err:
+        logger.debug("Preload Browser library failed: %s", _preload_err)
+
     # ── P1 改造 5：复用已开浏览器（不走 profile 持久化）──
     if reuse_existing:
         args = [
@@ -5426,6 +5440,7 @@ async def open_persistent_browser(
             "session_id": session_id,
             "user_data_dir": profile_dir,
         }
+
 
     # 2) 锁清理：crash 残留 SingletonLock 会阻塞 launch
     _clear_stale_profile_lock(profile_dir)
@@ -9408,6 +9423,23 @@ def main(argv: List[str] | None = None) -> None:
     # Must run before mcp.run() so sys.__stdout__ is redirected before any
     # RF keyword execution, but after MCP can still capture sys.stdout.buffer.
     _protect_mcp_stdout()
+
+    # 预热：在 MCP event loop 启动前（同步环境）完整走一次 RF 上下文 + Browser 启动。
+    # 实测：首次在 FastMCP 的 event loop 里启动 node driver/chrome 会卡死，
+    # 而在 mcp.run() 之前的同步环境里启动正常。
+    try:
+        import asyncio as _asyncio
+        import tempfile as _tf_warm
+
+        _warm_dir = _tf_warm.mkdtemp(prefix="robotmcp-warm-")
+        _warm_res = _asyncio.run(
+            open_persistent_browser(
+                user_data_dir=_warm_dir, url="about:blank", session_id="__warm__"
+            )
+        )
+        logger.info("RF+Browser warmup OK: success=%s", (_warm_res or {}).get("success"))
+    except Exception as _warm_err:
+        logger.warning("RF+Browser warmup failed: %s", _warm_err)
 
     try:
         _log_attach_banner()

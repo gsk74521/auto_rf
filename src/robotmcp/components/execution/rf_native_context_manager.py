@@ -447,6 +447,7 @@ class RobotFrameworkNativeContextManager:
                 "error": "Robot Framework native components not available"
             }
         
+
         if session_id not in self._session_contexts:
             # Try to create context automatically
             result = self.create_context_for_session(session_id)
@@ -588,7 +589,6 @@ class RobotFrameworkNativeContextManager:
                 session_id, keyword_name, arguments, namespace, variables, assign_to,
                 session_variables=session_variables,
             )
-            
             # Update session variables from RF variables
             context_info["variables"] = variables
             

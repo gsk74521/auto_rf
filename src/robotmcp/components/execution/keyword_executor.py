@@ -337,6 +337,15 @@ class KeywordExecutor:
         # to stderr while FastMCP writes JSON-RPC responses → lost responses.
         # Also prevents concurrent Selenium WebDriver access (not thread-safe).
         self._execution_lock = asyncio.Lock()
+        # RF 执行专用单线程：create_context_for_session 与
+        # execute_keyword_with_context 必须运行在同一个线程里。RF context
+        # 内含 Asynchronous（绑定创建时的事件循环），跨线程使用在
+        # FastMCP/anyio 的 event loop 下会让 playwright 启动挂死。
+        import concurrent.futures as _cf
+
+        self._rf_exec = _cf.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="rf-exec"
+        )
         # Library-aware locator-arg introspector. Used as a CONFIDENT VETO
         # over the curated ELEMENT_INTERACTION_KEYWORDS positive list:
         # when the introspector resolves the keyword to a SPECIFIC library
@@ -3914,9 +3923,16 @@ class KeywordExecutor:
                     pass
 
                 logger.info(f"Creating RF native context with libraries: {libraries}")
-                context_result = self.rf_native_context.create_context_for_session(
-                    session_id, libraries
+                import functools as _ft_ctx
+
+                _ctx_fut = self._rf_exec.submit(
+                    _ft_ctx.partial(
+                        self.rf_native_context.create_context_for_session,
+                        session_id,
+                        libraries,
+                    )
                 )
+                context_result = await asyncio.wrap_future(_ctx_fut)
                 if not context_result.get("success"):
                     logger.error(
                         f"RF native context creation failed: {context_result.get('error')}"
@@ -4005,16 +4021,22 @@ class KeywordExecutor:
             self._ensure_desktop_query_timeout(session)
 
             # Execute keyword using RF native context with session variables
-            result = await asyncio.to_thread(
-                self.rf_native_context.execute_keyword_with_context,
-                session_id=session_id,
-                keyword_name=keyword,
-                arguments=arguments_with_timeout,
-                assign_to=assign_to,
-                session_variables=dict(
-                    session.variables
-                ),  # Pass original objects to RF Variables
+            # NOTE: 用专用单线程池 submit + wrap_future，而非 asyncio.to_thread：
+            # 1) to_thread 会把当前 contextvars（FastMCP/anyio 的 cancel scope 等）
+            #    复制进工作线程；2) create_context 与关键字执行必须在同一线程。
+            import functools as _ft
+
+            _fut = self._rf_exec.submit(
+                _ft.partial(
+                    self.rf_native_context.execute_keyword_with_context,
+                    session_id=session_id,
+                    keyword_name=keyword,
+                    arguments=arguments_with_timeout,
+                    assign_to=assign_to,
+                    session_variables=dict(session.variables),
+                )
             )
+            result = await asyncio.wrap_future(_fut)
 
             # Update session variables from RF native context
             if result.get("success") and "variables" in result:
