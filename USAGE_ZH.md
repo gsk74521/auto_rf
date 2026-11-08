@@ -73,16 +73,25 @@ python -m Browser.entry init --skip-browsers
 
 ### 4.3 浏览器（关键）
 
-robotframework-browser 需要**版本匹配**的 Playwright 浏览器。两种做法选一：
+robotframework-browser 需要**版本匹配**的 Playwright 浏览器。三种做法选一：
 
-**方式 A：下载匹配版本（推荐，最省心）**
+**方式 A：官方下载**
 
 ```bash
-# 下载当前 robotframework-browser 版本所需的 chromium
 python -m Browser.entry install chromium
 ```
 
-**方式 B：复用系统已装的 Playwright 浏览器**
+**方式 B：国内镜像（国内用户推荐，速度快）**
+
+```bash
+export PLAYWRIGHT_DOWNLOAD_HOST=https://registry.npmmirror.com/-/binary/playwright
+python -m Browser.entry install chromium
+```
+
+> 镜像只同步较新版本（CfT 148+）。若项目锁定旧版 browser（如 19.12.7 → CfT 145），
+> 镜像没有对应文件，需用方式 A 或把 browser 升到新版。
+
+**方式 C：复用系统已装的 Playwright 浏览器**
 
 robotframework-browser 默认去自己 wrapper 下的 `.local-browsers` 找浏览器，
 与系统 Playwright 缓存（`%LOCALAPPDATA%/ms-playwright`）不是同一处。若想复用：
