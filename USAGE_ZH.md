@@ -3,7 +3,7 @@
 > 基于 [rf-mcp](https://github.com/manykarim/rf-mcp) 二次开发的 Robot Framework MCP Server。
 > 核心解决：**AI 写自动化时反复打开浏览器调试、效率低**。
 >
-> 本版本在 rf-mcp v0.36.0 基础上增加了 4 项增强 + 2 个关键修复，均已通过真实 MCP 端到端验证。
+> 当前版本 0.37.1 基于 rf-mcp v0.36.0，提供持久化浏览器、会话生命周期及规则/LLM 自愈。验证范围与限制见下文。
 
 ---
 
@@ -66,7 +66,7 @@ uv sync --extra all
 ### 4.2 从 wheel 安装（发布后）
 
 ```bash
-uv pip install rf_mcp_enhanced-0.37.0-py3-none-any.whl
+uv pip install rf_mcp_enhanced-0.37.1-py3-none-any.whl
 # 然后初始化 node wrapper
 python -m Browser.entry init --skip-browsers
 ```
@@ -263,7 +263,14 @@ Evaluate JavaScript    ${None}    () => { localStorage.clear(); sessionStorage.c
 
 ## 10. 自测脚本
 
-项目 `demo/` 目录下的验证脚本（需设 `PLAYWRIGHT_BROWSERS_PATH`）：
+项目 `demo/` 目录下的验证脚本（需设 `PLAYWRIGHT_BROWSERS_PATH`）。推荐通过外层限时入口运行：
+
+```bash
+python demo/run_acceptance.py quick_acceptance --timeout 120
+python demo/run_acceptance.py real_world_acceptance --timeout 120
+```
+
+入口保留脚本退出码；超时返回 124 并终止本次运行的进程树。脚本中的读取操作使用实际值断言，建套件及关闭失败也会使验收失败。详细的分类回归：
 
 ```bash
 # P0：持久化浏览器 + 规则自愈
@@ -285,11 +292,25 @@ Evaluate JavaScript    ${None}    () => { localStorage.clear(); sessionStorage.c
 .venv/Scripts/python.exe demo/test_p3_e2e.py
 .venv/Scripts/python.exe demo/test_p4_e2e.py
 
-# 实战：saucedemo 登录 + 购物车 + 生成 .robot
+# 真实 MCP + 标题/URL/数量断言 + 独立 robot 进程重放
+.venv/Scripts/python.exe demo/quick_acceptance.py
+
+# 实战：saucedemo 登录 + 购物车断言 + 生成并独立执行 .robot
 .venv/Scripts/python.exe demo/real_world_acceptance.py
 ```
 
 ---
+
+## 0.37.1 稳定性说明
+
+- Windows MCP stdio 首次开浏览器的阻塞已通过堆栈定位到 Browser 的 gRPC Health 等待。Browser 启动 Node 时继承了 MCP stdin；现在只对 Browser 的子进程入口设置 `stdin=DEVNULL`，不修改全局 subprocess。
+- 服务启动不再打开预热浏览器，不创建 `__warm__` 会话。RF 创建、执行和会话释放使用同一工作线程，服务退出时关闭 executor。
+- RF 上下文仍是进程内共享资源，关闭最后一个引用后才结束 suite。**多个浏览器会话尚未实现进程隔离**，关闭一个会话可能影响同进程的其他浏览器会话。需要隔离时请使用不同 MCP server 进程。
+- `reuse_existing` 仅复用当前 Browser 库管理的同配置浏览器，不接管任意手工打开的 Chrome。
+- P3 验证使用 FakeCtx sampling 返回定位器，验证了兜底控制流和真实浏览器重试；未验证真实模型的定位器生成质量或所有宿主的 sampling 支持。
+- 取消 asyncio 等待不能强制停止正在执行的同步 RF/第三方调用。验收外层设进程超时并清理该次运行的进程树；这不是服务端任意关键字的硬超时保证。
+- `fresh_profile` 创建的临时目录目前不自动删除；持久化 profile 需自行管理。Browser Node driver 可存活到服务退出，浏览器关闭与整个服务退出是不同边界。
+- 本机验证环境为 Windows、Python 3.14、Browser 21.0.0、匹配的系统 Chromium 缓存。Browser 21 要求 Python 3.11+；核心包仍支持 Python 3.10。其他系统和 Browser 版本未在此次发布中实测。
 
 ## 11. 二次开发说明
 

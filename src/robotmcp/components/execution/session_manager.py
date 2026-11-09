@@ -184,19 +184,23 @@ class SessionManager:
             if ctx_mgr is None:
                 return
 
-            # 1) 显式关闭浏览器（仅当该 session 已有 RF context 时）
-            ctx_info = ctx_mgr._session_contexts.get(session_id)
-            if ctx_info:
-                for kw in ("Browser.Close Browser", "Close Browser"):
-                    try:
-                        res = ctx_mgr.execute_keyword_with_context(session_id, kw, [])
-                        if res.get("success"):
-                            break
-                    except Exception:
-                        continue
+            def release():
+                ctx_info = ctx_mgr._session_contexts.get(session_id)
+                libraries = (
+                    ctx_info.get("libraries", []) + ctx_info.get("imported_libraries", [])
+                    if ctx_info else []
+                )
+                if "Browser" in libraries:
+                    ctx_mgr.execute_keyword_with_context(
+                        session_id, "Browser.Close Browser", ["ALL"]
+                    )
+                ctx_mgr.cleanup_context(session_id)
 
-            # 2) 结束 RF 执行上下文
-            ctx_mgr.cleanup_context(session_id)
+            worker = getattr(ctx_mgr, "_rf_exec", None)
+            if worker is not None:
+                worker.submit(release).result()
+            else:
+                release()
             logger.debug("Released RF context for session %s", session_id)
         except Exception as exc:  # 释放失败不阻塞 session 移除
             logger.debug("Failed to release RF context for %s: %s", session_id, exc)

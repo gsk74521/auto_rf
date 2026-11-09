@@ -9424,23 +9424,6 @@ def main(argv: List[str] | None = None) -> None:
     # RF keyword execution, but after MCP can still capture sys.stdout.buffer.
     _protect_mcp_stdout()
 
-    # 预热：在 MCP event loop 启动前（同步环境）完整走一次 RF 上下文 + Browser 启动。
-    # 实测：首次在 FastMCP 的 event loop 里启动 node driver/chrome 会卡死，
-    # 而在 mcp.run() 之前的同步环境里启动正常。
-    try:
-        import asyncio as _asyncio
-        import tempfile as _tf_warm
-
-        _warm_dir = _tf_warm.mkdtemp(prefix="robotmcp-warm-")
-        _warm_res = _asyncio.run(
-            open_persistent_browser(
-                user_data_dir=_warm_dir, url="about:blank", session_id="__warm__"
-            )
-        )
-        logger.info("RF+Browser warmup OK: success=%s", (_warm_res or {}).get("success"))
-    except Exception as _warm_err:
-        logger.warning("RF+Browser warmup failed: %s", _warm_err)
-
     try:
         _log_attach_banner()
     except Exception:
@@ -9601,9 +9584,15 @@ def main(argv: List[str] | None = None) -> None:
             logger.debug("Failed to shutdown instruction learning", exc_info=True)
 
         try:
-            execution_engine.session_manager.cleanup_all_sessions()
+            if _real_execution_engine is not None:
+                _real_execution_engine.session_manager.cleanup_all_sessions()
         except Exception:
             logger.debug("Failed to cleanup sessions on shutdown", exc_info=True)
+        finally:
+            if _real_execution_engine is not None:
+                _real_execution_engine.keyword_executor._rf_exec.shutdown(
+                    wait=True, cancel_futures=True
+                )
 
         if _frontend_controller:
             try:

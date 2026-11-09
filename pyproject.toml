@@ -8,7 +8,7 @@ name = "rf-mcp-enhanced"
 # the `[all]` extra, which
 # was making `uv tool install "rf-mcp[all]"` (and pipx, uvx, uv add) fail for every
 # user on every OS. See docs/RELEASE_NOTES_v0.35.1.md.
-version = "0.37.0"
+version = "0.37.1"
 description = "Robot Framework MCP Server (enhanced): persistent browser, self-healing locators, session lifecycle"
 authors = [{ name = "Many Kasiriha" }]
 license = { text = "Apache-2.0" }

@@ -64,16 +64,22 @@ async def test_self_heal_llm_fallback():
     print(f"[P3] llm_called={ctx.called} self_healed={res.get('self_healed')} "
           f"by={res.get('self_healed_by')} locator={res.get('healed_locator')}")
     assert ctx.called, "LLM 未被调用"
-    assert res.get("self_healed") and res.get("self_healed_by") == "llm", res
+    assert res.get("success") and res.get("self_healed"), res
+    assert res.get("self_healed_by") == "llm", res
 
     await server.manage_session(action="close_session", session_id="p3_test")
 
 
 async def main():
-    test_clean_locator()
-    await test_llm_locator_suggest()
-    await test_self_heal_llm_fallback()
-    print("\n=== P3 全部验收通过 ===")
+    from robotmcp import server
+    try:
+        test_clean_locator()
+        await test_llm_locator_suggest()
+        await test_self_heal_llm_fallback()
+        print("\n=== P3 全部验收通过 ===")
+    finally:
+        server.execution_engine.session_manager.cleanup_all_sessions()
+        server.execution_engine.keyword_executor._rf_exec.shutdown(wait=True)
 
 
 if __name__ == "__main__":

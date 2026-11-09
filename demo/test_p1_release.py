@@ -7,12 +7,11 @@ import psutil
 
 def browser_pids():
     pids = set()
-    for p in psutil.process_iter(["pid", "name", "cmdline"]):
+    for p in psutil.Process().children(recursive=True):
         try:
-            name = (p.info["name"] or "").lower()
-            cmd = " ".join(p.info["cmdline"] or []).lower()
-            if any(t in name or t in cmd for t in ("chrom", "headless", "playwright")):
-                pids.add(p.info["pid"])
+            name = p.name().lower()
+            if "chrom" in name or "headless" in name:
+                pids.add(p.pid)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
     return pids
@@ -30,6 +29,7 @@ async def main():
     await asyncio.sleep(1.5)
     opened = browser_pids() - before
     print(f"开后新增浏览器 PID: {sorted(opened)}")
+    assert opened, "No owned Chromium process was observed; release check would be vacuous"
 
     c = await server.manage_session(action="close_session", session_id="p1_pid")
     assert c.get("success"), c

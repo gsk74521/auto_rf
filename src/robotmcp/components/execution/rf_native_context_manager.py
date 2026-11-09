@@ -102,6 +102,7 @@ class RobotFrameworkNativeContextManager:
 
     def __init__(self):
         self._session_contexts = {}  # session_id -> context info
+        self._rf_exec = None  # Bound by KeywordExecutor for lifecycle operations.
         self._active_context = None
 
         if not RF_NATIVE_AVAILABLE:
@@ -1145,8 +1146,16 @@ class RobotFrameworkNativeContextManager:
         """Clean up Robot Framework context for a session."""
         try:
             if session_id in self._session_contexts:
-                # End RF execution context
-                EXECUTION_CONTEXTS.end_suite()
+                # Several sessions can reference the same RF context. End it
+                # only when its final owner closes; otherwise surviving sessions
+                # lose EXECUTION_CONTEXTS.current and cannot execute keywords.
+                context = self._session_contexts[session_id]["context"]
+                shared = any(
+                    sid != session_id and info.get("context") is context
+                    for sid, info in self._session_contexts.items()
+                )
+                if not shared:
+                    EXECUTION_CONTEXTS.end_suite()
                 
                 # Remove from our tracking
                 del self._session_contexts[session_id]

@@ -346,6 +346,7 @@ class KeywordExecutor:
         self._rf_exec = _cf.ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="rf-exec"
         )
+        self.rf_native_context._rf_exec = self._rf_exec
         # Library-aware locator-arg introspector. Used as a CONFIDENT VETO
         # over the curated ELEMENT_INTERACTION_KEYWORDS positive list:
         # when the introspector resolves the keyword to a SPECIFIC library

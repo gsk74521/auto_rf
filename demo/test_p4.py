@@ -71,10 +71,14 @@ async def test_clean_state():
         d = await _step("p4_clean2", kw, args)
         assert d.get("success"), (kw, d)
     # 等商品列表渲染（React 异步）
-    await _step("p4_clean2", "Browser.Wait For Elements State",
-                ["css=.inventory_item", "visible"])
+    d = await _step("p4_clean2", "Browser.Wait For Elements State",
+                    ["css=.inventory_item >> nth=0", "visible"])
+    assert d.get("success"), d
     d = await _step("p4_clean2", "Browser.Get Element Count", ["css=.inventory_item"])
-    print("[clean_state] 重新登录后商品数:", d.get("result") or d.get("output"))
+    assert d.get("success"), d
+    count = d.get("result", d.get("output"))
+    assert str(count) == "6", d
+    print("[clean_state] 重新登录后商品数:", count)
     d = await _step("p4_clean2", "Browser.Get Element Count",
                     ["id=add-to-cart-sauce-labs-backpack"])
     cnt = d.get("result") or d.get("output")
@@ -85,9 +89,14 @@ async def test_clean_state():
 
 
 async def main():
-    await test_fresh_profile()
-    await test_clean_state()
-    print("\n=== P4 全部验收通过 ===")
+    from robotmcp import server
+    try:
+        await test_fresh_profile()
+        await test_clean_state()
+        print("\n=== P4 全部验收通过 ===")
+    finally:
+        server.execution_engine.session_manager.cleanup_all_sessions()
+        server.execution_engine.keyword_executor._rf_exec.shutdown(wait=True)
 
 
 if __name__ == "__main__":

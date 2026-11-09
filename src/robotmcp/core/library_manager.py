@@ -178,6 +178,13 @@ class LibraryManager:
 
     def try_import_library(self, library_name: str, keyword_extractor) -> bool:
         """Try to import and initialize a Robot Framework library."""
+        if library_name == "Browser":
+            try:
+                from robotmcp.utils.browser_process import isolate_browser_stdin
+                isolate_browser_stdin()
+            except ImportError:
+                pass  # Browser remains an optional dependency.
+
         # ADR-025: PlatynUI resolves the Linux session type ONCE per process
         # and caches it. Force the X11 backend BEFORE the library is
         # imported/instantiated — anything that touches the native runtime

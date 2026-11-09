@@ -53,14 +53,21 @@ async def test_self_heal():
           "| attempts:", r.get("self_heal_attempts"))
     if r.get("self_heal_dom"):
         print("[改造4] dom 摘要前 150 字:", str(r.get("self_heal_dom"))[:150].replace("\n", " "))
-    assert r.get("self_heal_attempted") or r.get("self_healed"), r
+    assert r.get("success") is False, r
+    assert r.get("self_heal_attempted") is True, r
+    assert r.get("self_heal_dom") and r.get("self_heal_attempts"), r
 
 
 async def main():
-    test_helpers()
-    await test_persistent()
-    await test_self_heal()
-    print("\n=== P0 全部验收通过 ===")
+    from robotmcp import server
+    try:
+        test_helpers()
+        await test_persistent()
+        await test_self_heal()
+        print("\n=== P0 全部验收通过 ===")
+    finally:
+        server.execution_engine.session_manager.cleanup_all_sessions()
+        server.execution_engine.keyword_executor._rf_exec.shutdown(wait=True)
 
 
 if __name__ == "__main__":

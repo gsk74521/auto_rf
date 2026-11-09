@@ -1,4 +1,4 @@
-"""创建 GitHub Release v0.37.0 并上传 wheel + sdist（带重试）。"""
+"""创建 GitHub Release v0.37.1 并上传 wheel + sdist（带重试）。"""
 import json
 import subprocess
 import time
@@ -6,7 +6,7 @@ import urllib.error
 import urllib.request
 
 REPO = "gsk74521/auto_rf"
-TAG = "v0.37.0"
+TAG = "v0.37.1"
 GIT = r"C:\Program Files\Git\bin\git.exe"
 
 
@@ -57,10 +57,10 @@ def main():
         rel = existing
         print(f"release exists: id={rel['id']} {rel['html_url']}")
     else:
-        body = open("release/RELEASE_NOTES_v0.37.0.md", encoding="utf-8").read()
+        body = open("release/RELEASE_NOTES_v0.37.1.md", encoding="utf-8").read()
         payload = json.dumps({
             "tag_name": TAG,
-            "name": "auto_rf v0.37.0 — rf-mcp 增强版",
+            "name": "auto_rf v0.37.1 — rf-mcp 增强版",
             "body": body,
             "draft": False,
             "prerelease": False,
@@ -71,8 +71,9 @@ def main():
     rid = rel["id"]
     have = {a["name"] for a in rel.get("assets", [])}
     for path in [
-        "release/rf_mcp_enhanced-0.37.0-py3-none-any.whl",
-        "release/rf_mcp_enhanced-0.37.0.tar.gz",
+        "release/rf_mcp_enhanced-0.37.1-py3-none-any.whl",
+        "release/rf_mcp_enhanced-0.37.1.tar.gz",
+        "release/SHA256SUMS-v0.37.1.txt",
     ]:
         name = path.rsplit("/", 1)[-1]
         if name in have:

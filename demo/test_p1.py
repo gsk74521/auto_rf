@@ -59,11 +59,16 @@ async def test_reuse_existing():
 
 
 async def main():
-    test_state_machine()
-    test_revive()
-    await test_close_session()
-    await test_reuse_existing()
-    print("\n=== P1 全部验收通过 ===")
+    from robotmcp import server
+    try:
+        test_state_machine()
+        test_revive()
+        await test_close_session()
+        await test_reuse_existing()
+        print("\n=== P1 全部验收通过 ===")
+    finally:
+        server.execution_engine.session_manager.cleanup_all_sessions()
+        server.execution_engine.keyword_executor._rf_exec.shutdown(wait=True)
 
 
 if __name__ == "__main__":

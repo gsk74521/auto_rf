@@ -275,6 +275,8 @@ demo/robot_diag3/
 demo/robot_clear/
 demo/robot_after_clear/
 demo/robot_fresh/
+demo/example_results/
+demo/saucedemo_results/
 
 # Large binary test data (25MB, referenced by no test)
 test_data/SauceLabs.apk
